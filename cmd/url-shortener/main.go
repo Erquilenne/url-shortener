@@ -1,21 +1,54 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
+	"os"
 
 	"url-shortener/internal/config"
+	"url-shortener/internal/lib/logger/sl"
+	"url-shortener/internal/storage/sqlite"
+)
+
+const (
+	envLocal = "local"
+	envDev   = "dev"
+	envProd  = "prod"
 )
 
 func main() {
+	os.Setenv("CONFIG_PATH", "./config/local.yaml")
 	cfg := config.MustLoad()
+	log := setupLogger(cfg.Env)
 
-	fmt.Println(cfg)
+	log.Info("starting url-shortener", slog.String("env", cfg.Env))
+	log.Debug("debug messages are enabled")
 
 	// TODO: init logger: slog
+	storage, err := sqlite.New(cfg.StoragePath)
+	if err != nil {
+		log.Error("failed to init storage", sl.GetAttr(err))
+		os.Exit(1)
+	}
+
+	_ = storage
 
 	// TODO: init storage: sqllite
 
 	// TODO: init router: chi, render
 
 	// TODO: run server
+}
+
+func setupLogger(env string) *slog.Logger {
+	var log *slog.Logger
+	switch env {
+	case envLocal:
+		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	case envDev:
+		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	case envProd:
+		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	}
+
+	return log
 }
