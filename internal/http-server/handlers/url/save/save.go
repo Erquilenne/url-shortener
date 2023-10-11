@@ -1,12 +1,11 @@
 package save
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
-	resp "url-shortener/internal/lib/api/response"
+	"url-shortener/internal/lib/api/response"
 	"url-shortener/internal/lib/logger/sl"
+	"url-shortener/internal/lib/random"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
@@ -18,8 +17,10 @@ type Request struct {
 	Alias string `json:"alias,omitempty"`
 }
 
+const aliasLength = 6
+
 type Response struct {
-	resp.Response
+	response.Response
 	Alias string `json:"alias,omitempty"`
 }
 
@@ -42,7 +43,7 @@ func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 		if err != nil {
 			log.Error("failed to decode request body", sl.Err(err))
 
-			render.JSON(w, r, resp.Error("failed to decode request"))
+			render.JSON(w, r, response.Error("failed to decode request"))
 
 			return
 		}
@@ -50,31 +51,20 @@ func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 		log.Info("request body decoded", slog.Any("request", req))
 
 		if err := validator.New().Struct(req); err != nil {
+			validateErr := err.(validator.ValidationErrors)
+
 			log.Error("invalid request", sl.Err(err))
 
-			render.JSON(w, r, resp.Error("invalid request"))
+			render.JSON(w, r, response.Error("invalid request"))
+			render.JSON(w, r, response.ValidationErrors(validateErr))
 
 			return
 		}
-	}
-}
 
-func ValidationError(errs validator.ValidationErrors) Response {
-	var errMsgs []string
-
-	for _, err := range errs {
-		switch err.ActualTag() {
-		case "required":
-			errMsgs = append(errMsgs, fmt.Sprintf("field %s is a required field", err.Field()))
-		case "url":
-			errMsgs = append(errMsgs, fmt.Sprintf("field %s is not a valid URL", err.Field()))
-		default:
-			errMsgs = append(errMsgs, fmt.Sprintf("field %s is not valid", err.Field()))
+		alias := req.Alias
+		if alias == "" {
+		alias:
+			random.NewRandomString(aliasLength)
 		}
-	}
-
-	return Response{
-		Status: resp.StatusError,
-		Error:  strings.Join(errMsgs, ", "),
 	}
 }
