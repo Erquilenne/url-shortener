@@ -30,7 +30,7 @@ func Error(msg string) Response {
 	}
 }
 
-func ValidationErrors(errs validator.ValidationError) Response {
+func ValidationError(errs validator.ValidationErrors) Response {
 	var errMsgs []string
 
 	for _, err := range errs {

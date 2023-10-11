@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"url-shortener/internal/config"
+	"url-shortener/internal/http-server/handlers/url/save"
 	"url-shortener/internal/http-server/middleware/logger"
 	"url-shortener/internal/lib/logger/handlers/slogpretty"
 	"url-shortener/internal/lib/logger/sl"
@@ -56,7 +57,7 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	// TODO: init router: chi, render
+	router.Post("/url", save.New(log, storage))
 
 	// TODO: run server
 }
